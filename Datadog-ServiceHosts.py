@@ -1,67 +1,52 @@
-import requests
-import time
-from datetime import datetime, timedelta
+from datadog import initialize, api
+import datetime
 
-# Replace with your Datadog credentials
-API_KEY = "your_api_key"
-APP_KEY = "your_app_key"
-DATADOG_SITE = "datadoghq.com"  # Use datadoghq.eu or other regional sites if applicable
+# Replace with your Datadog API and application keys
+API_KEY = 'your_api_key'
+APP_KEY = 'your_app_key'
 
-# Convert current time to timestamp (in milliseconds)
-current_time = time.time()  # Current time in seconds
-current_time_ms = int(current_time * 1000)  # Convert to milliseconds
+# Initialize the Datadog client
+initialize(api_key=API_KEY, app_key=APP_KEY)
 
-# Define time range in minutes (e.g., last 10 minutes)
-minutes_ago = 10  # Adjust as needed
-from_time = current_time_ms - (minutes_ago * 60 * 1000)
-to_time = current_time_ms
-
-# Datadog Logs Aggregation API URL
-LOGS_API_URL = f"https://api.{DATADOG_SITE}/api/v2/logs/analytics/aggregate"
-
-def fetch_service_and_hosts(from_ts, to_ts):
+def fetch_hosts_for_service(service_name):
     """
-    Fetch aggregated logs from Datadog and extract service names and their associated hosts.
+    Fetch hosts for a specific service from Datadog Log Explorer.
     """
-    headers = {
-        "Content-Type": "application/json",
-        "DD-API-KEY": API_KEY,
-        "DD-APPLICATION-KEY": APP_KEY,
-    }
-
-    # Request body for the aggregation (service and host)
-    body = {
-        "query": "",  # Empty query (can be modified if needed, e.g., filter by specific service)
-        "time": {
-            "from": from_ts,
-            "to": to_ts,
-        },
-        "aggregations": [
-            {"field": "service", "type": "count"},  # Aggregate by service
-            {"field": "host", "type": "count"}     # Aggregate by host
-        ],
-        "limit": 50  # Adjust to fetch more results if needed
-    }
-
     try:
-        # Make the API request
-        response = requests.post(LOGS_API_URL, headers=headers, json=body)
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        # Define the time window for the logs (last 1 hour)
+        end_time = datetime.datetime.utcnow()
+        start_time = end_time - datetime.timedelta(hours=1)
 
-        # Parse the response
-        data = response.json()
-
-        # Process and extract service and host information
-        buckets = data.get("data", {}).get("buckets", [])
-        print("Service and Host Information:")
-        for bucket in buckets:
-            service = bucket.get("by", {}).get("service", "Unknown")
-            host = bucket.get("by", {}).get("host", "Unknown")
-            count = bucket.get("doc_count", 0)
-            print(f"Service: {service}, Host: {host}, Log Count: {count}")
+        # Query logs using the Datadog API for the specific service
+        response = api.Logs.query(
+            start=start_time.isoformat(),
+            end=end_time.isoformat(),
+            query=f"service:{service_name}",  # Specific service name filter
+            limit=100,  # Limit the number of logs retrieved (adjust as necessary)
+        )
         
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching aggregated logs: {e}")
+        # Check if there are logs
+        if 'data' in response:
+            hosts = set()  # Use a set to avoid duplicate hosts
+            for log in response['data']:
+                # Extract host information from the log
+                host = log.get('host', None)
+                if host:
+                    hosts.add(host)
+            
+            # Display hosts found
+            if hosts:
+                print(f"Hosts for service '{service_name}':")
+                for host in hosts:
+                    print(f"  - {host}")
+            else:
+                print(f"No hosts found for service '{service_name}'.")
+        else:
+            print(f"No logs found for service '{service_name}' in the given time range.")
+    
+    except Exception as e:
+        print(f"Error fetching logs: {e}")
 
 if __name__ == "__main__":
-    fetch_service_and_hosts(from_time, to_time)
+    service_name = "your_service_name"  # Replace with the service name you want to query
+    fetch_hosts_for_service(service_name)
