@@ -1,4 +1,5 @@
 from datadog import initialize, api
+https://app.datadoghq.com/logs?query=&agg_m=count&agg_m_source=base&agg_q=service%2Chost&agg_q_source=base%2Cbase&agg_t=count&cols=host%2Cservice&fromUser=true&messageDisplay=inline&refresh_mode=sliding&sort_m=count%2Ccount&sort_m_source=base%2Cbase&sort_t=count%2Ccount&storage=flex_tier&stream_sort=desc&top_n=50%2C50&top_o=top%2Ctop&viz=query_table&x_missing=true%2Ctrue&from_ts=1736439211869&to_ts=1736440111869&live=true
 
 # Replace with your Datadog API and application keys
 API_KEY = 'your_api_key'
